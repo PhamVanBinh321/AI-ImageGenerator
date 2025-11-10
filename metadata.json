@@ -1,0 +1,5 @@
+{
+  "name": "AI Image Generator Chatbot",
+  "description": "A modern, responsive web application for an AI chatbot that optimizes text prompts and generates images. The interface features a dark mode with glassmorphism effects, a two-column layout for chat and image preview, and a seamless user flow from idea to generated art.",
+  "requestFramePermissions": []
+}
