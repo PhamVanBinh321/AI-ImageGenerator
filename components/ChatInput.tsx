@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import SendIcon from './icons/SendIcon';
 
 interface ChatInputProps {
@@ -9,6 +8,7 @@ interface ChatInputProps {
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
   const [input, setInput] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +32,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading }) => {
     >
       <div className="relative">
         <textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyPress}

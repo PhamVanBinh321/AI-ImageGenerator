@@ -9,8 +9,8 @@ interface ChatPanelProps {
   isLoading: boolean;
   onSendMessage: (message: string) => void;
   onConfirmGeneration: (prompt: string, config?: ImageGenerationConfig) => void;
-  onEditPrompt: () => void;
   onToggleSidebar: () => void;
+  onRegenerate: (prompt: string, config?: ImageGenerationConfig) => void;
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({
@@ -18,8 +18,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   isLoading,
   onSendMessage,
   onConfirmGeneration,
-  onEditPrompt,
   onToggleSidebar,
+  onRegenerate,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -48,7 +48,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             key={msg.id}
             message={msg}
             onConfirm={onConfirmGeneration}
-            onEdit={onEditPrompt}
+            onRegenerate={onRegenerate}
           />
         ))}
          {isLoading && messages[messages.length-1]?.sender === 'user' && (

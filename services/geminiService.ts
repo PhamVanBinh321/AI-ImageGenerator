@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { ImageGenerationConfig } from '../types';
+import type { ImageGenerationConfig, Message } from '../types';
 
 // Assume process.env.API_KEY is available
 const API_KEY = process.env.API_KEY;
@@ -21,7 +21,7 @@ export const generateTitle = async (prompt: string): Promise<string> => {
     try {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `Summarize the following user prompt into a short, descriptive title of no more than 5 words. Respond with only the title text. Prompt: "${prompt}"`,
+            contents: `Tóm tắt prompt của người dùng sau thành một tiêu đề mô tả ngắn gọn không quá 5 từ. Chỉ trả lời bằng văn bản tiêu đề. Prompt: "${prompt}"`,
         });
         return response.text.trim().replace(/"/g, ''); // Clean up potential quotes
     } catch (error) {
@@ -30,14 +30,30 @@ export const generateTitle = async (prompt: string): Promise<string> => {
     }
 }
 
-export const optimizePrompt = async (userPrompt: string): Promise<OptimizedPromptResponse> => {
+export const optimizePrompt = async (messages: Message[]): Promise<OptimizedPromptResponse> => {
+  const conversationHistory = messages.map(m => `${m.sender}: ${m.text || m.originalPrompt}`).join('\n');
+  const lastUserPrompt = messages[messages.length - 1].text;
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: `Enhance the following user prompt for an AI image generator. Add vivid details about lighting, style, composition, and mood. Also, identify technical parameters from the prompt.
-- If the user mentions an aspect ratio (e.g., '16:9', 'portrait', 'square'), identify it. Valid aspect ratios are "1:1", "3:4", "4:3", "9:16", "16:9". Default to "1:1".
-- If the user asks for multiple images (e.g., 'three versions', '2 images'), identify the number. It should be between 1 and 4. Default to 1.
-Respond ONLY with a JSON object. The user prompt is: "${userPrompt}"`,
+      contents: `Bạn là một trợ lý AI chuyên tối ưu hóa prompt tạo ảnh dựa trên một cuộc trò chuyện.
+Phân tích toàn bộ lịch sử trò chuyện để hiểu ý tưởng cốt lõi của người dùng và tất cả các yêu cầu sửa đổi sau đó.
+Tổng hợp tất cả các yêu cầu thành một prompt duy nhất, gắn kết, và đã được tối ưu hóa BẰNG TIẾNG VIỆT.
+Tin nhắn cuối cùng của người dùng là yêu cầu thay đổi gần đây nhất của họ. Phần giải thích của bạn (explanation) cũng phải BẰNG TIẾNG VIỆT và tập trung vào việc bạn đã tích hợp thay đổi mới nhất này như thế nào.
+
+Từ tin nhắn mới nhất của người dùng, hãy xác định các thông số kỹ thuật:
+- Tỷ lệ khung hình (Aspect Ratio): Nếu được đề cập (ví dụ: '16:9', 'ảnh dọc'), hãy xác định nó. Tỷ lệ hợp lệ: "1:1", "3:4", "4:3", "9:16", "16:9". Mặc định là tỷ lệ được sử dụng lần cuối, hoặc "1:1".
+- Số lượng ảnh (Number of Images): Nếu được đề cập (ví dụ: 'ba phiên bản'), hãy xác định số lượng (1-4). Mặc định là số lượng được sử dụng lần cuối, hoặc 1.
+
+Chỉ trả lời bằng một đối tượng JSON.
+
+Conversation History:
+---
+${conversationHistory}
+---
+
+Latest User Prompt: "${lastUserPrompt}"`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -45,22 +61,22 @@ Respond ONLY with a JSON object. The user prompt is: "${userPrompt}"`,
           properties: {
             optimized: {
               type: Type.STRING,
-              description: "The enhanced and optimized prompt for the image generator."
+              description: "Prompt hoàn chỉnh, đã được tối ưu hóa bằng tiếng Việt, phản ánh toàn bộ cuộc trò chuyện."
             },
             explanation: {
               type: Type.STRING,
-              description: "A brief, friendly explanation of the improvements made to the prompt."
+              description: "Một lời giải thích ngắn gọn, thân thiện bằng tiếng Việt về cách yêu cầu mới nhất của người dùng đã được tích hợp."
             },
             config: {
               type: Type.OBJECT,
               properties: {
                 aspectRatio: {
                   type: Type.STRING,
-                  description: `The aspect ratio for the image. Must be one of: "1:1", "3:4", "4:3", "9:16", "16:9". Defaults to "1:1".`
+                  description: `Tỷ lệ khung hình của ảnh. Phải là một trong các giá trị: "1:1", "3:4", "4:3", "9:16", "16:9".`
                 },
                 numberOfImages: {
                     type: Type.INTEGER,
-                    description: "The number of images to generate, from 1 to 4. Defaults to 1."
+                    description: "Số lượng ảnh cần tạo, từ 1 đến 4."
                 }
               }
             }

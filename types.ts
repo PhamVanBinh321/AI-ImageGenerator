@@ -14,20 +14,21 @@ export interface Message {
   optimizedPrompt?: string;
   explanation?: string;
   imageConfig?: ImageGenerationConfig;
-}
-
-export type ImageStatus = 'idle' | 'loading' | 'success' | 'error';
-
-export interface ImageState {
-  status: ImageStatus;
-  urls: string[] | null;
-  prompt: string | null;
+  imageUrls?: string[];
+  imagePrompt?: string;
+  imageStatus?: 'loading' | 'success' | 'error';
 }
 
 export interface ChatSession {
   id: string;
   title: string;
   messages: Message[];
-  imageState: ImageState;
   createdAt: number;
+}
+
+// FIX: Added missing ImageState type definition.
+export interface ImageState {
+  status: 'idle' | 'loading' | 'success' | 'error';
+  urls?: string[];
+  prompt?: string;
 }
