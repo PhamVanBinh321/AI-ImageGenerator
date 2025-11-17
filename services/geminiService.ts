@@ -1,15 +1,8 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import type { ImageGenerationConfig, Message } from '../types';
 
-// Assume process.env.API_KEY is available
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-  // This is a placeholder for a more robust error handling in a real app
-  console.error("API_KEY is not set in environment variables.");
-}
-
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// Server backend sẽ chạy ở localhost:3001 theo mặc định.
+// Trong một ứng dụng production, URL này sẽ đến từ một biến môi trường.
+const API_BASE_URL = 'http://localhost:3001/api';
 
 type OptimizedPromptResponse = {
     optimized: string;
@@ -17,117 +10,58 @@ type OptimizedPromptResponse = {
     config: ImageGenerationConfig;
 };
 
+/**
+ * Hàm hỗ trợ để xử lý các request POST đến backend API.
+ * Giúp đơn giản hóa việc xử lý lỗi và parsing JSON.
+ * @param endpoint The API endpoint to call (e.g., 'generate-title').
+ * @param body The request body to send.
+ * @returns The JSON response from the server.
+ */
+async function postApi<T>(endpoint: string, body: object): Promise<T> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+            // Cố gắng parse lỗi từ backend, nếu không được thì dùng lỗi chung.
+            const errorData = await response.json().catch(() => ({ error: 'An unknown server error occurred' }));
+            throw new Error(errorData.error || `Request failed with status ${response.status}`);
+        }
+        return response.json();
+    } catch (error) {
+        // Xử lý lỗi mạng hoặc khi server chưa được chạy.
+        console.error(`API call to ${endpoint} failed:`, error);
+        if (error instanceof TypeError) { // Thường là lỗi mạng
+            throw new Error('Không thể kết nối đến máy chủ. Bạn đã khởi chạy server backend chưa? (chạy "npm start")');
+        }
+        throw error; // Ném lại các lỗi khác
+    }
+}
+
+
 export const generateTitle = async (prompt: string): Promise<string> => {
     try {
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `Tóm tắt prompt của người dùng sau thành một tiêu đề mô tả ngắn gọn không quá 5 từ. Chỉ trả lời bằng văn bản tiêu đề. Prompt: "${prompt}"`,
-        });
-        return response.text.trim().replace(/"/g, ''); // Clean up potential quotes
+        const data = await postApi<{ title: string }>('generate-title', { prompt });
+        return data.title;
     } catch (error) {
         console.error("Error generating title:", error);
-        return "Untitled Chat"; // Fallback title
+        return "Untitled Chat"; // Tiêu đề dự phòng
     }
 }
 
 export const optimizePrompt = async (messages: Message[]): Promise<OptimizedPromptResponse> => {
-  const conversationHistory = messages.map(m => `${m.sender}: ${m.text || m.originalPrompt}`).join('\n');
-  const lastUserPrompt = messages[messages.length - 1].text;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: `Bạn là một trợ lý AI chuyên tối ưu hóa prompt tạo ảnh dựa trên một cuộc trò chuyện.
-Phân tích toàn bộ lịch sử trò chuyện để hiểu ý tưởng cốt lõi của người dùng và tất cả các yêu cầu sửa đổi sau đó.
-Tổng hợp tất cả các yêu cầu thành một prompt duy nhất, gắn kết, và đã được tối ưu hóa BẰNG TIẾNG VIỆT.
-Tin nhắn cuối cùng của người dùng là yêu cầu thay đổi gần đây nhất của họ. Phần giải thích của bạn (explanation) cũng phải BẰNG TIẾNG VIỆT và tập trung vào việc bạn đã tích hợp thay đổi mới nhất này như thế nào.
-
-Từ tin nhắn mới nhất của người dùng, hãy xác định các thông số kỹ thuật:
-- Tỷ lệ khung hình (Aspect Ratio): Nếu được đề cập (ví dụ: '16:9', 'ảnh dọc'), hãy xác định nó. Tỷ lệ hợp lệ: "1:1", "3:4", "4:3", "9:16", "16:9". Mặc định là tỷ lệ được sử dụng lần cuối, hoặc "1:1".
-- Số lượng ảnh (Number of Images): Nếu được đề cập (ví dụ: 'ba phiên bản'), hãy xác định số lượng (1-4). Mặc định là số lượng được sử dụng lần cuối, hoặc 1.
-
-Chỉ trả lời bằng một đối tượng JSON.
-
-Conversation History:
----
-${conversationHistory}
----
-
-Latest User Prompt: "${lastUserPrompt}"`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            optimized: {
-              type: Type.STRING,
-              description: "Prompt hoàn chỉnh, đã được tối ưu hóa bằng tiếng Việt, phản ánh toàn bộ cuộc trò chuyện."
-            },
-            explanation: {
-              type: Type.STRING,
-              description: "Một lời giải thích ngắn gọn, thân thiện bằng tiếng Việt về cách yêu cầu mới nhất của người dùng đã được tích hợp."
-            },
-            config: {
-              type: Type.OBJECT,
-              properties: {
-                aspectRatio: {
-                  type: Type.STRING,
-                  description: `Tỷ lệ khung hình của ảnh. Phải là một trong các giá trị: "1:1", "3:4", "4:3", "9:16", "16:9".`
-                },
-                numberOfImages: {
-                    type: Type.INTEGER,
-                    description: "Số lượng ảnh cần tạo, từ 1 đến 4."
-                }
-              }
-            }
-          },
-          required: ["optimized", "explanation", "config"]
-        }
-      }
-    });
-
-    const jsonString = response.text.trim();
-    const result = JSON.parse(jsonString);
-    // Ensure defaults are set if model omits them
-    if (!result.config.aspectRatio) result.config.aspectRatio = '1:1';
-    if (!result.config.numberOfImages) result.config.numberOfImages = 1;
-
-    return result;
-  } catch (error) {
-    console.error("Error optimizing prompt:", error);
-    throw new Error("Failed to optimize prompt. The model might be unable to process the request.");
-  }
+  return postApi<OptimizedPromptResponse>('optimize-prompt', { messages });
 };
 
-const VALID_ASPECT_RATIOS: Array<ImageGenerationConfig['aspectRatio']> = ["1:1", "3:4", "4:3", "9:16", "16:9"];
-
 export const generateImage = async (prompt: string, config?: ImageGenerationConfig): Promise<string[]> => {
-  try {
-    const finalAspectRatio = (config?.aspectRatio && VALID_ASPECT_RATIOS.includes(config.aspectRatio))
-        ? config.aspectRatio
-        : '1:1';
-    
-    const finalNumberOfImages = (config?.numberOfImages && config.numberOfImages > 0 && config.numberOfImages <= 4)
-        ? config.numberOfImages
-        : 1;
-
-    const response = await ai.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt: prompt,
-        config: {
-          numberOfImages: finalNumberOfImages,
-          outputMimeType: 'image/png',
-          aspectRatio: finalAspectRatio,
-        },
-    });
-
-    if (response.generatedImages && response.generatedImages.length > 0) {
-      return response.generatedImages.map(img => `data:image/png;base64,${img.image.imageBytes}`);
-    } else {
+  const data = await postApi<{ imageUrls: string[] }>('generate-image', { prompt, config });
+  if (!data.imageUrls || data.imageUrls.length === 0) {
       throw new Error("No image was generated.");
-    }
-  } catch (error) {
-    console.error("Error generating image:", error);
-    throw new Error("Failed to generate image. Please check the prompt or try again later.");
   }
+  return data.imageUrls;
 };
