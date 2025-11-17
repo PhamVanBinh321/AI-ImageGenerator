@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import connectDB from './db.js';
 import User from './models/User.js';
 import ChatSession from './models/ChatSession.js';
@@ -145,8 +145,6 @@ Latest User Prompt: "${lastUserPrompt}"`,
     }
 });
 
-const VALID_ASPECT_RATIOS = ["1:1", "3:4", "4:3", "9:16", "16:9"];
-
 app.post('/api/generate-image', authMiddleware, async (req, res) => {
     const { prompt, config, sessionId, messageId } = req.body;
     if (!prompt || !sessionId || !messageId) {
@@ -162,22 +160,28 @@ app.post('/api/generate-image', authMiddleware, async (req, res) => {
     }
 
     try {
-        const finalAspectRatio = (config?.aspectRatio && VALID_ASPECT_RATIOS.includes(config.aspectRatio)) ? config.aspectRatio : '1:1';
-        const finalNumberOfImages = (config?.numberOfImages && config.numberOfImages > 0 && config.numberOfImages <= 4) ? config.numberOfImages : 1;
-
-        const response = await ai.models.generateImages({
-            model: 'imagen-4.0-generate-001',
-            prompt: prompt,
+        // Use gemini-2.5-flash-image which is more accessible
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image',
+            contents: {
+                parts: [{ text: prompt }],
+            },
             config: {
-                numberOfImages: finalNumberOfImages,
-                outputMimeType: 'image/png',
-                aspectRatio: finalAspectRatio,
+                responseModalities: [Modality.IMAGE],
             },
         });
         
-        if (response.generatedImages && response.generatedImages.length > 0) {
-            const imageUrls = response.generatedImages.map(img => `data:image/png;base64,${img.image.imageBytes}`);
-            
+        const imageUrls = [];
+        if (response.candidates && response.candidates.length > 0) {
+            for (const part of response.candidates[0].content.parts) {
+                if (part.inlineData) {
+                    const base64ImageBytes = part.inlineData.data;
+                    imageUrls.push(`data:image/png;base64,${base64ImageBytes}`);
+                }
+            }
+        }
+
+        if (imageUrls.length > 0) {
             // Trừ credit
             user.credits -= 1;
             await user.save();
@@ -203,7 +207,8 @@ app.post('/api/generate-image', authMiddleware, async (req, res) => {
             { _id: sessionId, "messages.id": messageId },
             { $set: { "messages.$.imageStatus": "error" } }
         );
-        res.status(500).json({ error: 'Failed to generate image due to a server error.' });
+        const detailedError = "Tạo ảnh thất bại. Nguyên nhân có thể do API key của bạn chưa được cấp quyền cho model hoặc dự án Google Cloud chưa bật thanh toán. Vui lòng kiểm tra lại cài đặt của bạn.";
+        res.status(500).json({ error: detailedError });
     }
 });
 
