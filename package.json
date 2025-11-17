@@ -1,16 +1,31 @@
 {
-  "name": "ai-image-generator-backend",
-  "version": "1.0.0",
-  "description": "Backend for AI Image Generator. To run: 'npm install' then 'npm start'. You must create a .env file with your API_KEY.",
-  "main": "server.js",
+  "name": "ai-image-generator-chatbot",
+  "private": true,
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.29.0",
+    "express": "^5.1.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "dotenv": "^17.2.3",
+    "vite": "^7.2.2",
+    "@vitejs/plugin-react": "^5.1.1",
+    "react": "^19.2.0",
+    "@google/genai": "^1.29.1",
+    "react-dom": "^19.2.0",
+    "mongoose": "^8.19.4",
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.2",
+    "axios": "^1.13.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
   }
 }
