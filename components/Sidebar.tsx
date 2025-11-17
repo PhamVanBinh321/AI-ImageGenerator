@@ -1,7 +1,11 @@
+
 import React from 'react';
 import type { ChatSession } from '../types';
 import EditIcon from './icons/EditIcon';
 import TrashIcon from './icons/TrashIcon';
+import UserIcon from './icons/UserIcon';
+import LogoutIcon from './icons/LogoutIcon';
+import CreditIcon from './icons/CreditIcon';
 
 interface SidebarProps {
   sessions: ChatSession[];
@@ -10,6 +14,8 @@ interface SidebarProps {
   onSelectChat: (id: string) => void;
   onDeleteChat: (id: string) => void;
   isOpen: boolean;
+  user: { email: string; credits: number } | null;
+  onLogout: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -19,6 +25,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectChat,
   onDeleteChat,
   isOpen,
+  user,
+  onLogout,
 }) => {
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -70,6 +78,30 @@ const Sidebar: React.FC<SidebarProps> = ({
             </a>
           ))}
         </nav>
+      </div>
+      <div className="p-2 mt-auto border-t border-gray-700/50">
+        {user && (
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center p-2">
+                <CreditIcon className="h-5 w-5 mr-3 text-yellow-400 flex-shrink-0" />
+                <span className="text-sm text-gray-400 mr-2">Credits:</span>
+                <span className="text-lg font-bold text-white">{user.credits}</span>
+            </div>
+            <div className="flex items-center justify-between p-2 rounded-lg bg-gray-800/40">
+                <div className="flex items-center min-w-0">
+                  <UserIcon className="h-6 w-6 mr-3 text-gray-400 flex-shrink-0" />
+                  <span className="text-sm text-gray-300 truncate">{user.email}</span>
+                </div>
+                <button
+                  onClick={onLogout}
+                  aria-label="Đăng xuất"
+                  className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                >
+                  <LogoutIcon className="h-5 w-5" />
+                </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import ChatPanel from './components/ChatPanel';
 import Sidebar from './components/Sidebar';
+import Auth from './components/Auth';
 import type { Message, ImageGenerationConfig, ChatSession } from './types';
 import { optimizePrompt, generateImage, generateTitle } from './services/geminiService';
 
@@ -17,18 +19,52 @@ const initialSession: ChatSession = {
     ],
 };
 
+// NOTE: This is a simulation. In a real app, never store passwords in localStorage.
+// Use a secure backend for authentication.
+interface UserRecord {
+    email: string;
+    // Storing password directly for this simulation
+    password: string;
+    credits: number;
+}
+
+interface CurrentUser {
+    email: string;
+    credits: number;
+}
+
 const App: React.FC = () => {
+    const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [toast, setToast] = useState<string | null>(null);
     const [isSidebarOpen, setSidebarOpen] = useState(false);
 
-
-    // Load sessions from localStorage on initial render
     useEffect(() => {
+        const loggedInUserEmail = localStorage.getItem('currentUser');
+        if (loggedInUserEmail) {
+            const users: UserRecord[] = JSON.parse(localStorage.getItem('users') || '[]');
+            const user = users.find(u => u.email === loggedInUserEmail);
+            if (user) {
+                setCurrentUser({ email: user.email, credits: user.credits });
+            } else {
+                 // Data inconsistency, log out user
+                localStorage.removeItem('currentUser');
+            }
+        }
+    }, []);
+
+    // Load sessions from localStorage when the current user's email changes (i.e., on login)
+    useEffect(() => {
+        if (!currentUser) {
+            setSessions([]);
+            setActiveSessionId(null);
+            return;
+        }
+
         try {
-            const storedSessions = localStorage.getItem('chatSessions');
+            const storedSessions = localStorage.getItem(`chatSessions_${currentUser.email}`);
             if (storedSessions) {
                 const parsedSessions = JSON.parse(storedSessions);
                 if(parsedSessions.length > 0) {
@@ -45,14 +81,16 @@ const App: React.FC = () => {
             handleNewChat();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [currentUser?.email]);
 
     // Save sessions to localStorage whenever they change
     useEffect(() => {
-        if(sessions.length > 0) {
-            localStorage.setItem('chatSessions', JSON.stringify(sessions));
+        if (currentUser && sessions.length > 0) {
+            localStorage.setItem(`chatSessions_${currentUser.email}`, JSON.stringify(sessions));
+        } else if (currentUser) {
+             localStorage.removeItem(`chatSessions_${currentUser.email}`);
         }
-    }, [sessions]);
+    }, [sessions, currentUser]);
     
     useEffect(() => {
         if (toast) {
@@ -60,6 +98,33 @@ const App: React.FC = () => {
             return () => clearTimeout(timer);
         }
     }, [toast]);
+
+    const handleLogin = async (email: string, pass: string) => {
+        const users: UserRecord[] = JSON.parse(localStorage.getItem('users') || '[]');
+        const user = users.find(u => u.email === email);
+        if (user && user.password === pass) {
+            localStorage.setItem('currentUser', email);
+            setCurrentUser({ email: user.email, credits: user.credits });
+            return { success: true };
+        }
+        return { success: false, error: 'Email hoặc mật khẩu không chính xác.' };
+    };
+
+    const handleSignup = async (email: string, pass: string) => {
+        const users: UserRecord[] = JSON.parse(localStorage.getItem('users') || '[]');
+        if (users.some(u => u.email === email)) {
+            return { success: false, error: 'Email này đã được sử dụng.' };
+        }
+        // New users get 10 credits
+        users.push({ email, password: pass, credits: 10 });
+        localStorage.setItem('users', JSON.stringify(users));
+        return handleLogin(email, pass);
+    };
+    
+    const handleLogout = () => {
+        localStorage.removeItem('currentUser');
+        setCurrentUser(null);
+    };
 
     const activeSession = sessions.find(s => s.id === activeSessionId) || null;
 
@@ -93,7 +158,7 @@ const App: React.FC = () => {
             createdAt: Date.now(),
              messages: [initialSession.messages[0]] // ensure fresh messages array
         };
-        setSessions(prev => [newSession, ...prev]);
+        setSessions(prev => [newSession, ...prev].sort((a,b) => b.createdAt - a.createdAt));
         setActiveSessionId(newSession.id);
         setSidebarOpen(false);
     }, []);
@@ -126,7 +191,6 @@ const App: React.FC = () => {
 
         const userMessage: Message = { id: Date.now().toString(), sender: 'user', text };
         
-        // Invalidate previous suggestions
         const currentMessagesWithoutOldSuggestions = activeSession.messages.map(msg => 
             msg.isOptimizing ? { ...msg, isOptimizing: false, text: `Prompt đã cũ: ${msg.optimizedPrompt}` } : msg
         );
@@ -134,14 +198,12 @@ const App: React.FC = () => {
         const updatedMessages = [...currentMessagesWithoutOldSuggestions, userMessage];
         updateSession(activeSession.id, { messages: updatedMessages });
         
-        // Generate title for new chats
-        if (activeSession.messages.length <= 1) { // <=1 because we are about to add the user message
+        if (activeSession.messages.length <= 1) {
             const title = await generateTitle(text);
             updateSession(activeSession.id, { title });
         }
 
         try {
-            // Send the entire history for context
             const { optimized, explanation, config } = await optimizePrompt(updatedMessages);
             const aiMessage: Message = {
                 id: (Date.now() + 1).toString(),
@@ -168,7 +230,12 @@ const App: React.FC = () => {
     };
 
     const handleConfirmGeneration = async (prompt: string, config?: ImageGenerationConfig) => {
-        if (!prompt || !activeSession) return;
+        if (!prompt || !activeSession || !currentUser) return;
+        
+        if (currentUser.credits < 1) {
+            showToast("Bạn không đủ credit để tạo ảnh.");
+            return;
+        }
 
         setIsLoading(true);
 
@@ -182,7 +249,6 @@ const App: React.FC = () => {
             imageConfig: config,
         };
         
-        // Replace the suggestion message with the loading message
         const lastMessageIndex = activeSession.messages.length - 1;
         let newMessages = [...activeSession.messages];
         if (lastMessageIndex >= 0 && newMessages[lastMessageIndex].isOptimizing) {
@@ -195,6 +261,19 @@ const App: React.FC = () => {
 
         try {
             const imageUrls = await generateImage(prompt, config);
+            
+            // Deduct credit on success
+            const updatedUser = { ...currentUser, credits: currentUser.credits - 1 };
+            setCurrentUser(updatedUser);
+            
+            // Persist credit change
+            const users: UserRecord[] = JSON.parse(localStorage.getItem('users') || '[]');
+            const userIndex = users.findIndex(u => u.email === currentUser.email);
+            if(userIndex !== -1) {
+                users[userIndex].credits = updatedUser.credits;
+                localStorage.setItem('users', JSON.stringify(users));
+            }
+            
             updateMessageInSession(activeSession.id, imageMessageId, { imageStatus: 'success', imageUrls });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "Đã có lỗi xảy ra khi tạo ảnh.";
@@ -204,6 +283,10 @@ const App: React.FC = () => {
             setIsLoading(false);
         }
     };
+    
+    if (!currentUser) {
+        return <Auth onLogin={handleLogin} onSignup={handleSignup} />;
+    }
     
     const displayedMessages = activeSession?.messages || [];
 
@@ -222,10 +305,11 @@ const App: React.FC = () => {
                 onSelectChat={handleSelectChat}
                 onDeleteChat={handleDeleteChat}
                 isOpen={isSidebarOpen}
+                user={currentUser}
+                onLogout={handleLogout}
             />
 
             <main className="flex-1 flex flex-col p-4 md:p-6 lg:p-8 min-w-0">
-                 {/* Overlay for mobile */}
                  {isSidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/60 z-10 md:hidden"></div>}
 
                 <div className="w-full h-full max-w-4xl mx-auto">

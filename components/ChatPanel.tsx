@@ -53,10 +53,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         ))}
          {isLoading && messages[messages.length-1]?.sender === 'user' && (
             <div className="flex justify-start mb-4">
-                <div className="bg-gray-700/50 text-gray-200 p-4 rounded-lg max-w-lg shadow-md border border-gray-600/50 flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse delay-150"></div>
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse delay-300"></div>
+                <div className="bg-gray-700/50 text-gray-200 p-4 rounded-lg max-w-lg shadow-md border border-gray-600/50 flex items-center space-x-3">
+                    <span className="text-gray-300 font-medium">AI đang tối ưu prompt</span>
+                    <div className="flex items-center space-x-1.5">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse delay-150"></div>
+                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse delay-300"></div>
+                    </div>
                 </div>
             </div>
         )}
