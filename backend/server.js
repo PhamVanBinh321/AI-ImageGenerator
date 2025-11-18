@@ -203,7 +203,8 @@ app.post('/api/generate-image', authMiddleware, async (req, res) => {
             { _id: sessionId, "messages.id": messageId },
             { $set: { "messages.$.imageStatus": "error" } }
         );
-        res.status(500).json({ error: 'Failed to generate image due to a server error.' });
+        const detailedError = "Tạo ảnh thất bại. Nguyên nhân có thể do API key của bạn chưa được cấp quyền cho model Imagen hoặc dự án Google Cloud chưa bật thanh toán. Vui lòng kiểm tra lại cài đặt của bạn.";
+        res.status(500).json({ error: detailedError });
     }
 });
 
