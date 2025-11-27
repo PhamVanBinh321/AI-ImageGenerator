@@ -17,6 +17,11 @@ export interface Message {
   imageUrls?: string[];
   imagePrompt?: string;
   imageStatus?: 'loading' | 'success' | 'error';
+  feedback?: {
+    type?: 'like' | 'dislike' | null;
+    reported?: boolean;
+    reportedAt?: string;
+  };
 }
 
 export interface ChatSession {
@@ -30,6 +35,10 @@ export interface ChatSession {
 
 
 export interface CurrentUser {
+    _id?: string;
     email: string;
     credits: number;
+    role?: 'user' | 'admin';
+    createdAt?: string;
+    updatedAt?: string;
 }

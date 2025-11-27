@@ -15,6 +15,11 @@ const messageSchema = new mongoose.Schema({
   imageUrls: { type: [String], default: [] },
   imagePrompt: { type: String },
   imageStatus: { type: String, enum: ['loading', 'success', 'error'] },
+  feedback: {
+    type: { type: String, enum: ['like', 'dislike'], default: null },
+    reported: { type: Boolean, default: false },
+    reportedAt: { type: Date },
+  },
 }, { _id: false });
 
 

@@ -68,5 +68,85 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
+// @route   POST api/sessions/:sessionId/messages/:messageId/feedback
+// @desc    Update feedback for a message (like/dislike)
+// @access  Private
+router.post('/:sessionId/messages/:messageId/feedback', async (req, res) => {
+    try {
+        const { sessionId, messageId } = req.params;
+        const { type } = req.body; // 'like', 'dislike', or null to remove
+
+        // Validate feedback type
+        if (type !== null && type !== 'like' && type !== 'dislike') {
+            return res.status(400).json({ error: 'Invalid feedback type. Must be "like", "dislike", or null' });
+        }
+
+        const session = await ChatSession.findOne({ _id: sessionId, user: req.user.id });
+        if (!session) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        const message = session.messages.find(msg => msg.id === messageId);
+        if (!message) {
+            return res.status(404).json({ error: 'Message not found' });
+        }
+
+        // Update feedback
+        const updateData = {
+            'messages.$.feedback.type': type,
+        };
+
+        // Nếu type là null, xóa feedback
+        if (type === null) {
+            updateData['messages.$.feedback.type'] = null;
+        }
+
+        await ChatSession.updateOne(
+            { _id: sessionId, 'messages.id': messageId },
+            { $set: updateData }
+        );
+
+        res.json({ success: true, feedback: { type } });
+    } catch (error) {
+        console.error('Error updating feedback:', error.message);
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
+
+// @route   POST api/sessions/:sessionId/messages/:messageId/report
+// @desc    Report a message
+// @access  Private
+router.post('/:sessionId/messages/:messageId/report', async (req, res) => {
+    try {
+        const { sessionId, messageId } = req.params;
+
+        const session = await ChatSession.findOne({ _id: sessionId, user: req.user.id });
+        if (!session) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        const message = session.messages.find(msg => msg.id === messageId);
+        if (!message) {
+            return res.status(404).json({ error: 'Message not found' });
+        }
+
+        // Update report status
+        await ChatSession.updateOne(
+            { _id: sessionId, 'messages.id': messageId },
+            { 
+                $set: { 
+                    'messages.$.feedback.reported': true,
+                    'messages.$.feedback.reportedAt': new Date()
+                }
+            }
+        );
+
+        res.json({ success: true, message: 'Message reported successfully' });
+    } catch (error) {
+        console.error('Error reporting message:', error.message);
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
+
 
 export default router;

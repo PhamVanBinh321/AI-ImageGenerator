@@ -7,6 +7,7 @@ import MenuIcon from './icons/MenuIcon';
 interface ChatPanelProps {
   messages: Message[];
   isLoading: boolean;
+  sessionId: string | null;
   onSendMessage: (message: string) => void;
   onConfirmGeneration: (prompt: string, config?: ImageGenerationConfig) => void;
   onToggleSidebar: () => void;
@@ -16,6 +17,7 @@ interface ChatPanelProps {
 const ChatPanel: React.FC<ChatPanelProps> = ({
   messages,
   isLoading,
+  sessionId,
   onSendMessage,
   onConfirmGeneration,
   onToggleSidebar,
@@ -42,11 +44,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         </h1>
         <div className="w-8 md:hidden"></div> {/* Spacer to center title */}
       </header>
-      <div className="flex-1 p-4 overflow-y-auto">
+      <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
         {messages.map((msg) => (
           <ChatMessage
             key={msg.id}
             message={msg}
+            sessionId={sessionId}
             onConfirm={onConfirmGeneration}
             onRegenerate={onRegenerate}
           />

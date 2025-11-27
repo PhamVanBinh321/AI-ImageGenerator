@@ -68,6 +68,22 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onSignup }) => {
               className="w-full bg-gray-700/50 text-white rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-shadow duration-300"
               placeholder="••••••••"
             />
+            {!isLogin && (
+              <div className="mt-2 text-xs text-gray-400 space-y-1">
+                <p className="flex items-center">
+                  <span className="mr-2">•</span>
+                  Không được rỗng
+                </p>
+                <p className="flex items-center">
+                  <span className="mr-2">•</span>
+                  Tối thiểu 8 ký tự
+                </p>
+                <p className="flex items-center">
+                  <span className="mr-2">•</span>
+                  Có ít nhất 1 chữ hoa, 1 chữ thường, 1 số
+                </p>
+              </div>
+            )}
           </div>
           <button
             type="submit"
