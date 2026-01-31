@@ -9,6 +9,8 @@ export interface Message {
   id: string;
   sender: MessageSender;
   text: string;
+  isError?: boolean;
+  errorMessage?: string;
   isOptimizing?: boolean;
   originalPrompt?: string;
   optimizedPrompt?: string;
@@ -34,11 +36,28 @@ export interface ChatSession {
 }
 
 
-export interface CurrentUser {
-    _id?: string;
-    email: string;
-    credits: number;
-    role?: 'user' | 'admin';
-    createdAt?: string;
-    updatedAt?: string;
+export interface User {
+  _id: string;
+  email: string;
+  name?: string; // Optional if not always present
+  credits: number;
+  role: 'user' | 'admin';
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type CurrentUser = User; // Alias for backward compatibility if needed
+
+export interface Transaction {
+  _id: string;
+  userId: string;
+  packageId?: string; // Optional if not always present
+  amount: number;
+  credits: number;
+  bonusCredits: number;
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
+  orderId: string;
+  invoiceNumber: string;
+  createdAt: string;
+  updatedAt: string;
 }

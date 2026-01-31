@@ -4,6 +4,8 @@ const messageSchema = new mongoose.Schema({
   id: { type: String, required: true },
   sender: { type: String, enum: ['user', 'ai'], required: true },
   text: { type: String },
+  isError: { type: Boolean, default: false },
+  errorMessage: { type: String },
   isOptimizing: { type: Boolean, default: false },
   originalPrompt: { type: String },
   optimizedPrompt: { type: String },
